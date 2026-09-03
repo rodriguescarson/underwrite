@@ -99,12 +99,21 @@ async def _propose(context: dict[str, Any], model: str) -> tuple[dict[str, Any] 
     return extract_json(final), final, calls
 
 
-def propose(context: dict[str, Any]) -> tuple[dict[str, Any] | None, str, list[str], str]:
-    """Returns (proposal_json_or_None, transcript, tool_calls, model_used)."""
+def propose(context: dict[str, Any], attempts: int = 3) -> tuple[dict[str, Any] | None, str, list[str], str]:
+    """Returns (proposal_json_or_None, transcript, tool_calls, model_used).
+    Network blips (DNS, resets) and 503s are retried with backoff before falling back to the next model."""
+    import time as _t
+    last = "no attempt"
     for model in (MODEL, FALLBACK_MODEL):
-        try:
-            j, text, calls = asyncio.run(_propose(context, model))
-            return j, text, calls, model
-        except Exception as e:  # model unavailable, quota, etc. — fall through once
-            last = f"{type(e).__name__}: {e}"
+        for attempt in range(attempts):
+            try:
+                j, text, calls = asyncio.run(_propose(context, model))
+                return j, text, calls, model
+            except Exception as e:  # model unavailable, quota, DNS — retry, then fall through
+                last = f"{type(e).__name__}: {str(e)[:300]}"
+                transient = any(k in last for k in ("DNS", "Cannot connect", "503", "UNAVAILABLE", "reset", "timeout", "Timeout", "429"))
+                if attempt < attempts - 1 and transient:
+                    _t.sleep(5 * (attempt + 1))
+                    continue
+                break
     return None, last, [], "none"
