@@ -54,14 +54,30 @@ def cmd_run(ns: argparse.Namespace) -> int:
 
 
 def cmd_loop(ns: argparse.Namespace) -> int:
-    from . import audit_cli
+    """Runs until the market closes or --until (HH:MM local) passes. A failing cycle is logged and retried next tick; it never ends the desk."""
+    from . import audit_cli, ledger
     from .cycle import run_once
+    cycles = 0
     while True:
-        log = run_once(dry=ns.dry)
-        console.print(f"[bold]{time.strftime('%H:%M:%S')}[/] equity={log.get('equity')} exits={len(log.get('exits') or [])} order={log.get('order')} skipped={log.get('skipped')}")
-        if not audit_cli.clock().get("is_open"):
-            console.print("market closed — loop ends (a pod is either working or off; so is a desk)")
+        try:
+            log = run_once(dry=ns.dry)
+            console.print(f"[bold]{time.strftime('%H:%M:%S')}[/] equity={log.get('equity')} exits={len(log.get('exits') or [])} order={log.get('order')} gate={'accept' if (log.get('gate') or {}).get('accepted') else (log.get('gate') or {}).get('reasons', [''])[:1]} skipped={log.get('skipped')}")
+        except Exception as e:  # the desk stays up; the failure is on the record
+            ledger.append("audits", {"type": "cycle_error", "claim_id": None, "error": f"{type(e).__name__}: {e}"[:500]})
+            console.print(f"[red]cycle failed[/] {type(e).__name__}: {str(e)[:200]} — retrying next tick")
+        cycles += 1
+        if ns.max_cycles and cycles >= ns.max_cycles:
+            console.print(f"reached --max-cycles {ns.max_cycles}")
             return 0
+        if ns.until and time.strftime("%H:%M") >= ns.until:
+            console.print(f"--until {ns.until} reached")
+            return 0
+        try:
+            if not audit_cli.clock().get("is_open"):
+                console.print("market closed — loop ends (a pod is either working or off; so is a desk)")
+                return 0
+        except Exception as e:
+            console.print(f"[yellow]clock check failed[/] {e}; continuing")
         time.sleep(ns.every)
 
 
@@ -84,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor").set_defaults(fn=cmd_doctor)
     r = sub.add_parser("run"); r.add_argument("--dry", action="store_true"); r.set_defaults(fn=cmd_run)
-    l = sub.add_parser("loop"); l.add_argument("--every", type=int, default=900); l.add_argument("--dry", action="store_true"); l.set_defaults(fn=cmd_loop)
+    l = sub.add_parser("loop"); l.add_argument("--every", type=int, default=900); l.add_argument("--dry", action="store_true"); l.add_argument("--max-cycles", type=int, default=0); l.add_argument("--until", default="", help="HH:MM local time to stop, e.g. 20:05"); l.set_defaults(fn=cmd_loop)
     sub.add_parser("audit").set_defaults(fn=cmd_audit)
     sub.add_parser("report").set_defaults(fn=cmd_report)
     ns = ap.parse_args(argv)
