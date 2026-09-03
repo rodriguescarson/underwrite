@@ -62,13 +62,13 @@ Neither is clever. Both are the kind of thing that decides whether an autonomous
 
 First live session for Underwrite, @lablabai x @AlpacaHQ hackathon, on a fresh $100k paper account:
 
-→ [N] proposals from the strategist, [M] accepted by the gate
-→ [K] spreads opened through Alpaca's MCP server, every one confirmed by the CLI audit: [K]/[K] claims matched, 0 silent failures
-→ stated P(profit) [x.xx] to [x.xx], realised: [W] wins / [L] losses, P&L $[…]
+→ 4 strategist cycles, 2 proposals accepted by the gate (2 cycles produced nothing: Gemini quota hit, rerouted through OpenRouter mid-session)
+→ 2 bull put spreads opened through Alpaca's MCP server (SPY 765/760, NVDA 220/215), both confirmed by the CLI audit: 2/2 claims matched, 0 silent failures
+→ stated P(profit) 0.65 and 0.77, $836 at risk total, sized 1x each at the floor
 
 Sizing stayed at the floor. 0 of 10 required resolved trades for calibration. The report says so, on purpose.
 
-Ledger and report: [url]
+Ledger and report: https://underwrite-ashen.vercel.app
 
 #AIagents #OptionsTrading #Alpaca #MCP #lablabai
 
@@ -78,12 +78,12 @@ Underwrite traded its first live session for the lablab.ai x Alpaca hackathon, o
 
 What happened, from the ledger, not from memory:
 
-→ The strategist made [N] proposals across [U] underlyings; the gate accepted [M] and refused [N-M], each with a written reason (most common: [reason]).
-→ [K] defined-risk spreads were opened through Alpaca's MCP server. The auditor re-read every order through the Alpaca CLI: [K] of [K] claims matched, 0 silent failures.
-→ Stated probability of profit ranged [x.xx] to [x.xx]. Realised so far: [W] wins, [L] losses, P&L $[…] on [$…] at risk.
+→ The strategist ran 4 cycles; 2 produced proposals (SPY and NVDA) and the gate accepted both after re-pricing every leg itself: width 5.00, credits 0.66 and 0.98 at mid, max loss $434 and $402. The other 2 cycles produced nothing because the Gemini key ran out of quota mid-session; the desk was rerouted through OpenRouter without stopping.
+→ 2 defined-risk spreads were opened through Alpaca's MCP server. The auditor re-read every order through the Alpaca CLI: 2 of 2 claims matched, 0 silent failures.
+→ Stated probability of profit: 0.77 (SPY, from the short strike's delta) and 0.65 (NVDA). $836 at risk in total, 1x each.
 
 Position size stayed at the floor, 0.25% of equity per structure, because 0 of the 10 resolved trades needed for calibration exist yet. That number is on the first page of the report. Most agent demos would hide it. The whole point of this one is that it cannot.
 
-Report: [url] · Code: [repo] @lablabai @AlpacaHQ
+Report: https://underwrite-ashen.vercel.app · Code: github.com/rodriguescarson/underwrite @lablabai @AlpacaHQ
 
 #AIagents #OptionsTrading #Alpaca #MCP #Calibration #BuildInPublic
