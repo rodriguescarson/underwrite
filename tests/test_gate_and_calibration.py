@@ -4,9 +4,6 @@ from pathlib import Path
 
 import pytest
 
-os.environ["UNDERWRITE_LEDGER_DIR"] = str(Path(__file__).parent / "_ledger")
-os.environ.setdefault("ALPACA_API_KEY", "PKTEST")
-os.environ.setdefault("ALPACA_SECRET_KEY", "test")
 
 from underwrite import calibration, ledger  # noqa: E402
 from underwrite.config import RISK  # noqa: E402
@@ -14,15 +11,6 @@ from underwrite.market import LegQuote  # noqa: E402
 from underwrite.models import Leg, Proposal  # noqa: E402
 from underwrite.risk import evaluate  # noqa: E402
 from datetime import date, timedelta  # noqa: E402
-
-
-@pytest.fixture(autouse=True)
-def clean_ledger():
-    d = Path(os.environ["UNDERWRITE_LEDGER_DIR"])
-    d.mkdir(exist_ok=True)
-    for f in d.glob("*.jsonl"):
-        f.unlink()
-    yield
 
 
 def _exp(days=21):
