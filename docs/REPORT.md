@@ -1,5 +1,11 @@
 # Underwrite — desk report
-_Generated 2026-09-03T08:40+00:00 from the ledger. Action channel: Alpaca MCP server. Audit channel: Alpaca CLI ._
+_Generated 2026-09-03T18:58+00:00 from the ledger and nothing else. Action channel: Alpaca MCP server (`uvx alpaca-mcp-server`). Audit channel: Alpaca CLI . Strategist: Gemini via Google ADK, read-only MCP tools._
+
+## The idea in one line
+The strategist proposes, a deterministic gate re-prices and sizes, the executor acts through Alpaca's MCP server, an independent auditor re-checks every claim through the Alpaca CLI, and position size is earned by measured calibration rather than granted by confidence.
+
+## How to verify this report
+Every order id below appears twice: once in the executor's claim (what the MCP server returned) and once in the CLI audit (what the account actually holds). Every gate decision lists its reasons. Every proposal lists the MCP tool calls it made. The raw ledger is at `ledger.json` next to this page; the code is at github.com/rodriguescarson/underwrite.
 
 ## Account (as the CLI sees it)
 | first snapshot | equity | latest snapshot | equity | account |
