@@ -5,3 +5,4 @@ ledger/*.jsonl
 !ledger/.gitkeep
 docs/deck.pdf
 tests/_ledger*/
+docs/deck.filled.html
