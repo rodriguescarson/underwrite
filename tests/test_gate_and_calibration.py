@@ -73,3 +73,12 @@ def test_silent_failure_blocks_earning():
         ledger.append("outcomes", {"proposal_id": f"prp_{i}", "p_profit": 0.7, "win": i % 10 < 7, "resolved": True})
     s = calibration.compute()
     assert s.silent_failures == 1 and not s.earned
+
+
+def test_gate_blocks_second_structure_while_first_is_working():
+    from underwrite import ledger
+    ledger.append("orders", {"claim_id": "clm_w", "kind": "open", "proposal_id": "prp_w", "underlying": "SPY", "claimed_status": "pending_new", "p_profit": 0.7, "legs": []})
+    ledger.append("audits", {"type": "claim", "claim_id": "clm_w", "observed": True, "observed_status": "new", "matches_claim": True})
+    p, q = _bps()
+    d = evaluate("prp_x", p, q, 100_000.0, [], calibration.compute())
+    assert not d.accepted and any("working in SPY" in r for r in d.reasons)

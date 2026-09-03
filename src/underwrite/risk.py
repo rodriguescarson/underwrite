@@ -41,6 +41,22 @@ def _structure_math(p: Proposal, q: dict[str, LegQuote]) -> tuple[float, float, 
     return credit, round(max_loss, 2), notes
 
 
+def open_claim_underlyings() -> list[str]:
+    """Underlyings with a live OPEN claim on the ledger (filled or still working), so a second
+    structure cannot slip in while the first order is only 'new'. Closed structures are excluded."""
+    latest = ledger.latest_by("audits", "claim_id")
+    closed = {c.get("closes_proposal_id") for c in ledger.read("orders") if c.get("kind") == "close" and latest.get(c["claim_id"], {}).get("observed_status") == "filled"}
+    out = []
+    for c in ledger.read("orders"):
+        if c.get("kind") != "open" or c["proposal_id"] in closed:
+            continue
+        st = latest.get(c["claim_id"], {}).get("observed_status")
+        if st in ("canceled", "expired", "rejected"):
+            continue
+        out.append(c.get("underlying", ""))
+    return out
+
+
 def evaluate(proposal_id: str, p: Proposal, q: dict[str, LegQuote], equity: float, open_positions: list[dict], calib: CalibrationState) -> GateDecision:
     reasons: list[str] = []
     reject = False
@@ -65,12 +81,13 @@ def evaluate(proposal_id: str, p: Proposal, q: dict[str, LegQuote], equity: floa
             reject, _ = True, reasons.append(f"{leg.symbol}: open interest {lq.open_interest} < {RISK.min_open_interest}")
 
     # concurrency, from the CLI's view of positions (truth), not the agent's memory
-    open_underlyings = [pos.get("symbol", "")[:6].rstrip("0123456789") for pos in open_positions if pos.get("asset_class") == "us_option"]
-    distinct = {u for u in open_underlyings if u}
+    pos_underlyings = [pos.get("symbol", "")[:6].rstrip("0123456789") for pos in open_positions if pos.get("asset_class") == "us_option"]
+    claim_underlyings = open_claim_underlyings()
+    distinct = {u for u in pos_underlyings + claim_underlyings if u}
     if len(distinct) >= RISK.max_open_structures:
-        reject, _ = True, reasons.append(f"{len(distinct)} structures already open ≥ cap {RISK.max_open_structures}")
-    if sum(1 for u in open_underlyings if u == p.underlying) >= RISK.max_structures_per_underlying * 2:  # 2 legs per structure
-        reject, _ = True, reasons.append(f"already positioned in {p.underlying}")
+        reject, _ = True, reasons.append(f"{len(distinct)} structures already open/working ≥ cap {RISK.max_open_structures}")
+    if p.underlying in distinct:
+        reject, _ = True, reasons.append(f"already positioned or working in {p.underlying} (one structure per underlying)")
 
     credit_mid, max_loss, notes = (0.0, math.inf, []) if any(l.symbol not in q for l in p.legs) else _structure_math(p, q)
     reasons.extend(notes)
