@@ -18,7 +18,7 @@ The executor places the multi-leg order through the MCP server's place_option_or
 
 Position size is a function of measured calibration: Brier score and expected calibration error of stated probabilities against realised outcomes, reported-vs-verified claim accuracy, and silent-failure count. The budget unlocks from 0.25% to 1% of equity only after ten resolved structures with ECE ≤ 0.15, Brier ≤ 0.25 and 99% claim accuracy. During the hackathon the desk trades at the floor, and the published report says so rather than hiding it.
 
-Everything is an append-only JSONL ledger, and the hosted report is generated from it and nothing else: every order id appears in both a claim and a CLI audit, every gate decision lists its reasons, every proposal lists its MCP tool calls. Account: a fresh paper account created for this hackathon, reset to $100,000.
+Everything is an append-only JSONL ledger, and the hosted report is generated from it and nothing else: every order id appears in both a claim and a CLI audit, every gate decision lists its reasons, every proposal lists its MCP tool calls. Account: paper account PA3TNFFGMVEM, created for this hackathon on 2026-09-03 19:00 UTC with $100,000. First live session (US close, Sep 3): 2 defined-risk spreads opened through the MCP server (SPY 765/760, NVDA 220/215), both confirmed filled by the CLI audit, 2/2 claims matched, 0 silent failures, $836 at risk, sized 1x at the floor because 0 of the 10 resolved structures needed to earn the full budget exist yet.
 
 **Technology tags:** Alpaca, Gemini, Google ADK, MCP, Python, Streamlit-free static report (Vercel)
 

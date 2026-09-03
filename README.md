@@ -26,6 +26,8 @@ uv run underwrite report                # docs/REPORT.md + docs/index.html + doc
 
 The MCP server is launched on demand with `uvx alpaca-mcp-server` (stdio) — nothing to install.
 
+Strategist model: `UNDERWRITE_MODEL` is a native Gemini id by default; set it to `openrouter/<vendor>/<model>` (with `OPENROUTER_API_KEY`) to route through LiteLLM — the desk did exactly that mid-session on 2026-09-03 when the Gemini key ran out of quota, without stopping.
+
 ## The ledger
 
 Append-only JSONL under `ledger/`, one file per record kind: `proposals`, `gate`, `orders` (claims), `audits` (CLI observations), `outcomes`. The report is generated from these files and nothing else; every number in it has a line behind it.
