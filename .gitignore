@@ -3,3 +3,4 @@
 __pycache__/
 ledger/*.jsonl
 !ledger/.gitkeep
+docs/deck.pdf

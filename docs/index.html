@@ -1,0 +1,43 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Underwrite — desk report</title><style>body{font:15px/1.5 system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#111}table{border-collapse:collapse;width:100%;font-size:13px;margin:.5rem 0 1.5rem}th,td{border:1px solid #ddd;padding:.35rem .5rem;text-align:left;vertical-align:top}th{background:#f3f3f3}h1{margin-bottom:0}h2{margin-top:2rem;border-bottom:1px solid #ddd;padding-bottom:.25rem}code{background:#f3f3f3;padding:0 .25rem}</style><h1>Underwrite — desk report</h1>
+<p><em>Generated 2026-09-03T08:40+00:00 from the ledger. Action channel: Alpaca MCP server. Audit channel: Alpaca CLI .</em></p>
+<h2>Account (as the CLI sees it)</h2>
+<table>
+<tr><th>first snapshot</th><th>equity</th><th>latest snapshot</th><th>equity</th><th>account</th></tr>
+<tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<h2>Calibration — the numbers that set position size</h2>
+<table>
+<tr><th>claims</th><th>audited</th><th>claim accuracy</th><th>silent failures</th><th>resolved</th><th>wins</th><th>Brier</th><th>ECE</th><th>risk/trade</th><th>status</th></tr>
+<tr><td>0</td><td>0</td><td>None</td><td>0</td><td>0</td><td>0</td><td>None</td><td>None</td><td>0.25%</td><td>floor</td></tr>
+</table>
+<p>Gate verdict: only 0/10 structures resolved; ECE undefined; Brier undefined; claim accuracy None &lt; 0.99</p>
+<h2>Claims vs. audits (executor said → CLI observed)</h2>
+<p><em>no orders yet</em></p>
+<h2>Gate decisions</h2>
+<p><em>none</em></p>
+<h2>Strategist proposals</h2>
+<p><em>none</em></p>
+<h2>Resolved structures</h2>
+<p><em>none resolved yet — provisional MTM is in the latest snapshot below</em></p>
+<h2>Open positions, mark-to-market (latest CLI snapshot)</h2>
+<p><em>flat</em></p>
+<h2>The gate&#x27;s constants</h2>
+<table>
+<tr><th>parameter</th><th>value</th></tr>
+<tr><td>max_loss_per_trade_frac</td><td>0.01</td></tr>
+<tr><td>floor_risk_frac</td><td>0.0025</td></tr>
+<tr><td>earned_risk_frac</td><td>0.01</td></tr>
+<tr><td>min_dte</td><td>7</td></tr>
+<tr><td>max_dte</td><td>45</td></tr>
+<tr><td>max_open_structures</td><td>4</td></tr>
+<tr><td>max_structures_per_underlying</td><td>1</td></tr>
+<tr><td>max_bid_ask_spread_frac</td><td>0.15</td></tr>
+<tr><td>max_abs_spread</td><td>0.1</td></tr>
+<tr><td>min_open_interest</td><td>100</td></tr>
+<tr><td>min_p_profit</td><td>0.55</td></tr>
+<tr><td>allowed_underlyings</td><td>('SPY', 'QQQ', 'IWM', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA')</td></tr>
+<tr><td>calib_min_resolved</td><td>10</td></tr>
+<tr><td>calib_max_ece</td><td>0.15</td></tr>
+<tr><td>calib_max_brier</td><td>0.25</td></tr>
+<tr><td>calib_min_claim_accuracy</td><td>0.99</td></tr>
+</table>

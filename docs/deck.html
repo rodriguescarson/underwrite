@@ -1,0 +1,112 @@
+<!doctype html><meta charset="utf-8"><title>Underwrite — deck</title>
+<style>
+@page { size: 1280px 720px; margin: 0; }
+html, body { margin: 0; background: #fff; color: #111; font: 22px/1.4 "IBM Plex Sans", system-ui, sans-serif; }
+section { width: 1280px; height: 720px; box-sizing: border-box; padding: 72px 88px; page-break-after: always; position: relative; display: flex; flex-direction: column; justify-content: center; }
+section.dark { background: #0f1115; color: #f4f4f2; }
+h1 { font-size: 64px; line-height: 1.05; margin: 0 0 20px; letter-spacing: -0.02em; }
+h2 { font-size: 40px; line-height: 1.1; margin: 0 0 28px; letter-spacing: -0.01em; }
+p, li { font-size: 24px; margin: 0 0 10px; }
+ul { padding-left: 28px; margin: 0; }
+.kicker { font-size: 16px; text-transform: uppercase; letter-spacing: .14em; opacity: .6; margin-bottom: 18px; }
+.foot { position: absolute; bottom: 36px; left: 88px; font-size: 14px; opacity: .55; }
+.num { font-size: 56px; font-weight: 600; letter-spacing: -0.02em; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 48px; }
+table { border-collapse: collapse; font-size: 19px; width: 100%; }
+td, th { border-bottom: 1px solid #ddd; padding: 8px 10px; text-align: left; }
+section.dark td, section.dark th { border-color: #333; }
+code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 20px; }
+</style>
+
+<section class="dark">
+  <div class="kicker">lablab.ai × Alpaca · AI Trading Agents Hackathon · Sept 2026</div>
+  <h1>Underwrite</h1>
+  <p style="font-size:30px">The options agent that has to earn its own position size.</p>
+  <p style="opacity:.7">Carson Rodrigues · solo · github.com/rodriguescarson/underwrite</p>
+  <div class="foot">1 / 8</div>
+</section>
+
+<section>
+  <div class="kicker">Problem</div>
+  <h2>An agent's most dangerous output is a confident report that does not match the account.</h2>
+  <ul>
+    <li>Every trading agent in this field <em>claims</em> risk management. Almost none measure whether their own claims are true.</li>
+    <li>LLMs state probabilities that are not calibrated, then size trades from that confidence.</li>
+    <li>"Order placed" from a tool call is a claim, not a fact. Nothing checks it.</li>
+  </ul>
+  <div class="foot">2 / 8</div>
+</section>
+
+<section>
+  <div class="kicker">Solution</div>
+  <h2>Propose → gate → act → audit → calibrate → size</h2>
+  <table>
+    <tr><th>Strategist</th><td>Gemini agent (Google ADK) whose only market access is Alpaca's <b>MCP server</b>, read-only tools. Proposes one defined-risk spread with a stated P(profit), or declines.</td></tr>
+    <tr><th>Gate</th><td>Deterministic Python. Re-quotes every leg via alpaca-py, recomputes max loss, enforces 1% of equity, DTE 7–45, spread, open interest, concurrency.</td></tr>
+    <tr><th>Executor</th><td><code>place_option_order</code> through the <b>MCP server</b>. The server's reply is the executor's <em>claim</em>, recorded verbatim.</td></tr>
+    <tr><th>Auditor</th><td>Alpaca <b>CLI</b>, separate binary, separate HTTP client. Reconciles every claim. Claimed-filled-not-filled = silent failure.</td></tr>
+    <tr><th>Sizing</th><td>0.25% of equity at the floor → 1% only after 10 resolved trades with ECE ≤ 0.15, Brier ≤ 0.25, 99% claim accuracy.</td></tr>
+  </table>
+  <div class="foot">3 / 8</div>
+</section>
+
+<section class="dark">
+  <div class="kicker">Alpaca infrastructure</div>
+  <h2>Two channels, one truth.</h2>
+  <div class="grid">
+    <div><p class="num">MCP</p><p>acts — <code>uvx alpaca-mcp-server</code> (stdio). Strategist reads chains, snapshots, account, news. Executor places multi-leg orders.</p></div>
+    <div><p class="num">CLI</p><p>audits — <code>alpaca order get</code>, <code>position list</code>, <code>account get</code>, JSON output, same keys, nothing shared with the MCP path.</p></div>
+    <div><p class="num">alpaca-py</p><p>the gate's independent quotes: option snapshots, contract open interest.</p></div>
+    <div><p class="num">$100,000</p><p>paper account created for the hackathon, reset to the required balance; account number in the first ledger snapshot.</p></div>
+  </div>
+  <div class="foot">4 / 8</div>
+</section>
+
+<section>
+  <div class="kicker">Live session — {{SESSION_DATE}}</div>
+  <h2>What the ledger says, not what the agent remembers.</h2>
+  <div class="grid">
+    <div><p class="num">{{N_PROPOSALS}}</p><p>strategist proposals</p></div>
+    <div><p class="num">{{N_ACCEPTED}}</p><p>accepted by the gate</p></div>
+    <div><p class="num">{{CLAIM_ACC}}</p><p>claims confirmed by the CLI · {{SILENT}} silent failures</p></div>
+    <div><p class="num">{{PNL}}</p><p>P&L on {{AT_RISK}} at risk · sizing at the floor</p></div>
+  </div>
+  <div class="foot">5 / 8</div>
+</section>
+
+<section>
+  <div class="kicker">Calibration</div>
+  <h2>The numbers that set position size.</h2>
+  <table>
+    <tr><th>Resolved structures</th><td>{{N_RESOLVED}} / 10 required</td></tr>
+    <tr><th>Brier</th><td>{{BRIER}} (≤ 0.25 required)</td></tr>
+    <tr><th>ECE</th><td>{{ECE}} (≤ 0.15 required)</td></tr>
+    <tr><th>Claim accuracy</th><td>{{CLAIM_ACC}} (≥ 99% required)</td></tr>
+    <tr><th>Verdict</th><td>{{VERDICT}}</td></tr>
+  </table>
+  <p style="margin-top:20px;opacity:.75">The desk stayed at the floor because it has not yet proven it can predict its own outcomes. That is the correct state, and the report says so instead of hiding it.</p>
+  <div class="foot">6 / 8</div>
+</section>
+
+<section class="dark">
+  <div class="kicker">Business value</div>
+  <h2>Calibration-gated sizing is the missing primitive for agentic brokerage.</h2>
+  <ul>
+    <li>Alpaca's own thesis is "agent-first brokerage". The first question any allocator asks an agent is: <em>how do you know it does what it says?</em></li>
+    <li>Underwrite is that answer as infrastructure: ledger, two-channel reconciliation, calibration → risk budget. Strategy-agnostic.</li>
+    <li>Sells to prop desks running LLM agents, to fintechs on Alpaca's Broker API, and as a compliance artifact.</li>
+  </ul>
+  <div class="foot">7 / 8</div>
+</section>
+
+<section>
+  <div class="kicker">Verify it yourself</div>
+  <h2>Everything is a ledger line.</h2>
+  <ul>
+    <li>Report: <code>underwrite-ashen.vercel.app</code> · Code: <code>github.com/rodriguescarson/underwrite</code></li>
+    <li>Every order id appears in an executor claim <em>and</em> a CLI audit; every gate decision lists its reasons; every proposal lists its MCP tool calls.</li>
+    <li>Metrics reused from Attest (Brier, ECE, risk–coverage): standard definitions, no LLM in the arithmetic.</li>
+  </ul>
+  <p style="margin-top:24px">Carson Rodrigues · @lablabai @AlpacaHQ</p>
+  <div class="foot">8 / 8</div>
+</section>
