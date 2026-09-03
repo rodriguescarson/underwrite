@@ -15,7 +15,7 @@ import re
 import time
 from typing import Any
 
-from . import agent, audit_cli, calibration, ledger, market, mcp_exec, risk
+from . import agent, audit_cli, calibration, committee, ledger, market, mcp_exec, risk
 from .config import RISK
 from .models import Leg, Proposal
 
@@ -184,6 +184,12 @@ def run_once(dry: bool = False) -> dict[str, Any]:
     log["strategist"] = {"model": model, "tool_calls": calls, "no_trade": bool(pj and pj.get("no_trade")), "parsed": pj is not None}
     if not pj or pj.get("no_trade"):
         log["skipped"] = "strategist declined" if pj else "strategist returned no parsable proposal"
+        return log
+    ok, why, _second = committee.consult(context, pj, prop_rec["proposal_id"])
+    log["committee"] = why
+    if not ok:
+        ledger.append("gate", {"decision_id": ledger.new_id("dec"), "proposal_id": prop_rec["proposal_id"], "accepted": False, "reasons": [f"second opinion: {why}"], "qty": 0})
+        log["skipped"] = f"committee: {why}"
         return log
     try:
         p = Proposal(**{**pj, "legs": [Leg(**l) for l in pj["legs"]]})

@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Underwrite — live desk</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+body{font:15px/1.5 system-ui,sans-serif;max-width:1180px;margin:1.5rem auto;padding:0 1rem;color:#111;background:#f7f6f3}
+h1{margin:0;letter-spacing:-.01em}h2{margin:1.8rem 0 .5rem;font-size:18px}
+.sub{color:#555;margin:.2rem 0 1rem}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.kpi{border:1px solid #ddd;border-radius:8px;padding:.6rem .8rem;background:#fff}.kpi .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#666}.kpi .v{font-size:22px;font-weight:600}
+.strip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;margin:1rem 0}.strip span{border:1px solid #111;border-radius:6px;padding:.3rem .6rem}.strip .act{background:#111;color:#fff}
+table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}th,td{border:1px solid #ddd;padding:.35rem .5rem;text-align:left;vertical-align:top}th{background:#f3f3f3}
+.ok{color:#0a7a3d;font-weight:600}.bad{color:#b3261e;font-weight:600}.muted{color:#777}
+.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}.card{border:1px solid #ddd;border-radius:10px;background:#fff;padding:12px}
+code{background:#eee;padding:0 .25rem}
+</style>
+<h1>Underwrite — live desk</h1>
+<p class="sub">The options agent that has to earn its own position size. Everything below is rendered from <a href="ledger.json">ledger.json</a> in your browser; nothing is summarised by a model.</p>
+<div class="strip"><span>Strategist · Gemini / Claude via ADK</span>→<span>Second opinion</span>→<span>Gate · deterministic</span>→<span class="act">Executor · Alpaca MCP</span>→<span class="act">Auditor · Alpaca CLI</span>→<span>Calibration → size</span></div>
+<div class="kpis" id="kpis"></div>
+<div class="grid" style="margin-top:16px">
+  <div class="card"><h2 style="margin-top:0">Equity, as the CLI sees it</h2><canvas id="eq" height="120"></canvas></div>
+  <div class="card"><h2 style="margin-top:0">Calibration gate</h2><div id="calib"></div></div>
+</div>
+<h2>Claims vs. audits — executor said → CLI observed</h2><table id="claims"></table>
+<h2>Gate decisions</h2><table id="gates"></table>
+<h2>Strategist proposals (and second opinions)</h2><table id="props"></table>
+<h2>Open positions, mark-to-market (latest CLI snapshot)</h2><table id="pos"></table>
+<p class="muted" style="margin-top:2rem">Account created for this hackathon and funded with $100,000. Code: github.com/rodriguescarson/underwrite · Report: <a href="index.html">index.html</a></p>
+<script>
+const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const t=s=>(s||"").slice(11,19);
+fetch("ledger.json").then(r=>r.json()).then(L=>{
+  const snaps=L.audits.filter(a=>a.type==="snapshot"), claimsA={}; L.audits.filter(a=>a.type==="claim").forEach(a=>claimsA[a.claim_id]=a);
+  const orders=L.orders, gates=L.gate, props=L.proposals, outcomes=L.outcomes.filter(o=>o.resolved);
+  const audited=orders.filter(o=>claimsA[o.claim_id]); const matched=audited.filter(o=>claimsA[o.claim_id].matches_claim).length;
+  const silent=audited.filter(o=>["filled","partially_filled"].includes(o.claimed_status)&&!["filled","partially_filled"].includes(claimsA[o.claim_id].observed_status)).length;
+  const last=snaps[snaps.length-1]||{}; const first=snaps[0]||{};
+  const mtm=(last.positions_mtm||[]).reduce((a,p)=>a+Number(p.unrealized_pl||0),0);
+  const kp=[["equity",last.equity?`$${Number(last.equity).toLocaleString()}`:"—"],["claims",orders.length],["CLI-confirmed",audited.length?`${matched}/${audited.length}`:"—"],["silent failures",silent],["resolved",`${outcomes.length}/10`],["MTM",`${mtm>=0?"+":""}$${mtm.toFixed(0)}`]];
+  document.getElementById("kpis").innerHTML=kp.map(([k,v])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  new Chart(document.getElementById("eq"),{type:"line",data:{labels:snaps.map(s=>t(s.ts)),datasets:[{label:"equity",data:snaps.map(s=>Number(s.equity)),borderColor:"#111",backgroundColor:"rgba(0,0,0,.05)",fill:true,tension:.25,pointRadius:2}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>"$"+Number(v).toLocaleString()}}}}});
+  const need=[["resolved structures",`${outcomes.length} / 10`],["Brier",outcomes.length?"computed in report":"n/a (≤ 0.25 required)"],["ECE",outcomes.length?"computed in report":"n/a (≤ 0.15 required)"],["claim accuracy",audited.length?`${(100*matched/audited.length).toFixed(0)}% (≥ 99% required)`:"—"],["silent failures",`${silent} (0 required)`],["risk budget","0.25% of equity per structure (floor) → 1% when earned"]];
+  document.getElementById("calib").innerHTML="<table>"+need.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join("")+"</table><p class='muted' style='margin:.5rem 0 0'>The desk stays at the floor until it has proven it can predict its own outcomes.</p>";
+  const rows=orders.map(o=>{const a=claimsA[o.claim_id]||{};return `<tr><td>${t(o.ts)}</td><td>${o.kind}</td><td>${esc(o.underlying)}</td><td>${esc(o.structure)}</td><td>${(o.legs||[]).map(l=>esc(l.symbol.slice(-15))+" "+l.side).join("<br>")}</td><td>${o.qty}</td><td>${o.limit_price}</td><td>${o.p_profit}</td><td>${esc(o.claimed_status)}</td><td>${esc(a.observed_status||"—")}</td><td class="${a.matches_claim?"ok":"bad"}">${a.matches_claim?"✔ match":a.observed?"✘ mismatch":"…"}</td><td><code>${(o.order_id||"").slice(0,8)}</code></td></tr>`}).join("");
+  document.getElementById("claims").innerHTML="<tr><th>time</th><th>kind</th><th>underlying</th><th>structure</th><th>legs</th><th>qty</th><th>limit</th><th>p_profit</th><th>claimed</th><th>observed</th><th>audit</th><th>order</th></tr>"+(rows||"<tr><td colspan=12 class=muted>no orders yet</td></tr>");
+  document.getElementById("gates").innerHTML="<tr><th>time</th><th>verdict</th><th>qty</th><th>reasons</th></tr>"+gates.map(g=>`<tr><td>${t(g.ts)}</td><td class="${g.accepted?"ok":"bad"}">${g.accepted?"accept":"reject"}</td><td>${g.qty||0}</td><td>${(g.reasons||[]).map(esc).join("<br>")}</td></tr>`).join("");
+  document.getElementById("props").innerHTML="<tr><th>time</th><th>role</th><th>model</th><th>tool calls</th><th>proposal</th><th>p_profit</th><th>thesis / agreement</th></tr>"+props.map(p=>{const pr=p.proposal||{};return `<tr><td>${t(p.ts)}</td><td>${p.role||"primary"}</td><td>${esc(p.model)}</td><td>${(p.tool_calls||[]).length}</td><td>${pr.no_trade?"no trade":esc(pr.structure||"unparsed")} ${esc(pr.underlying||"")}</td><td>${pr.p_profit??"—"}</td><td>${esc((p.why||pr.thesis||pr.reason||"").slice(0,220))}</td></tr>`}).join("");
+  document.getElementById("pos").innerHTML="<tr><th>symbol</th><th>qty</th><th>avg entry</th><th>market value</th><th>unrealized P&amp;L</th></tr>"+((last.positions_mtm||[]).map(p=>`<tr><td>${esc(p.symbol)}</td><td>${p.qty}</td><td>${p.avg_entry}</td><td>${p.market_value}</td><td class="${Number(p.unrealized_pl)>=0?"ok":"bad"}">${p.unrealized_pl}</td></tr>`).join("")||"<tr><td colspan=5 class=muted>flat</td></tr>");
+}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<p class=bad>ledger.json failed to load: "+esc(e)+"</p>")});
+</script>
