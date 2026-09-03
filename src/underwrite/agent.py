@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from google.adk.agents import LlmAgent
+from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
@@ -74,7 +75,9 @@ def extract_json(text: str) -> dict[str, Any] | None:
 
 async def _propose(context: dict[str, Any], model: str) -> tuple[dict[str, Any] | None, str, list[str]]:
     toolset = McpToolset(connection_params=StdioConnectionParams(server_params=server_params(), timeout=120), tool_filter=READ_ONLY)
-    agent = LlmAgent(name="strategist", model=model, instruction=INSTRUCTION, tools=[toolset])
+    # "openrouter/<vendor>/<model>" routes through LiteLLM (OPENROUTER_API_KEY); anything else is a native Gemini id.
+    llm = LiteLlm(model=model) if model.startswith(("openrouter/", "anthropic/", "openai/")) else model
+    agent = LlmAgent(name="strategist", model=llm, instruction=INSTRUCTION, tools=[toolset])
     sessions = InMemorySessionService()
     runner = Runner(agent=agent, app_name="underwrite", session_service=sessions)
     session = await sessions.create_session(app_name="underwrite", user_id="uw")

@@ -12,6 +12,7 @@ dependencies = [
   "pydantic>=2",
   "streamlit>=1.40",
   "pandas>=2.2",
+  "litellm>=1.99.0",
 ]
 
 [project.scripts]
