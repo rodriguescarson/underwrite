@@ -49,5 +49,5 @@ def alpaca_env() -> dict[str, str]:
     return {"ALPACA_API_KEY": key, "ALPACA_SECRET_KEY": secret, "ALPACA_PAPER_TRADE": "true"}
 
 
-MODEL = os.getenv("UNDERWRITE_MODEL", "gemini-3.7-flash")
+MODEL = os.getenv("UNDERWRITE_MODEL", "gemini-3.5-flash")
 FALLBACK_MODEL = os.getenv("UNDERWRITE_FALLBACK_MODEL", "gemini-2.5-flash")
