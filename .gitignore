@@ -6,3 +6,5 @@ ledger/*.jsonl
 docs/deck.pdf
 tests/_ledger*/
 docs/deck.filled.html
+build/
+docs/*.mp4

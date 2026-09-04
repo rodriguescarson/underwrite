@@ -13,6 +13,7 @@ dependencies = [
   "streamlit>=1.40",
   "pandas>=2.2",
   "litellm>=1.99.0",
+  "pymupdf>=1.28.2",
 ]
 
 [project.scripts]
