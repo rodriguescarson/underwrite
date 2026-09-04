@@ -4,6 +4,7 @@ a JSON proposal that the gate will re-verify against live quotes it fetches itse
 from __future__ import annotations
 
 import asyncio
+import os
 import json
 import re
 from datetime import date, timedelta
@@ -75,8 +76,14 @@ def extract_json(text: str) -> dict[str, Any] | None:
 
 async def _propose(context: dict[str, Any], model: str) -> tuple[dict[str, Any] | None, str, list[str]]:
     toolset = McpToolset(connection_params=StdioConnectionParams(server_params=server_params(), timeout=120), tool_filter=READ_ONLY)
-    # "openrouter/<vendor>/<model>" routes through LiteLLM (OPENROUTER_API_KEY); anything else is a native Gemini id.
-    llm = LiteLlm(model=model) if model.startswith(("openrouter/", "anthropic/", "openai/")) else model
+    # "openrouter/<vendor>/<model>" routes through LiteLLM (OPENROUTER_API_KEY); "featherless/<org>/<model>" uses
+    # Featherless's OpenAI-compatible endpoint (FEATHERLESS_API_KEY); anything else is a native Gemini id.
+    if model.startswith("featherless/"):
+        llm = LiteLlm(model="openai/" + model[len("featherless/"):], api_base="https://api.featherless.ai/v1", api_key=os.getenv("FEATHERLESS_API_KEY", ""))
+    elif model.startswith(("openrouter/", "anthropic/", "openai/")):
+        llm = LiteLlm(model=model)
+    else:
+        llm = model
     agent = LlmAgent(name="strategist", model=llm, instruction=INSTRUCTION, tools=[toolset])
     sessions = InMemorySessionService()
     runner = Runner(agent=agent, app_name="underwrite", session_service=sessions)

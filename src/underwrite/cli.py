@@ -48,7 +48,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
 def cmd_run(ns: argparse.Namespace) -> int:
     from .cycle import run_once
-    log = run_once(dry=ns.dry)
+    log = run_once(dry=ns.dry, force=getattr(ns, "force", False))
     console.print_json(json.dumps(log, default=str))
     return 0
 
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="underwrite", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor").set_defaults(fn=cmd_doctor)
-    r = sub.add_parser("run"); r.add_argument("--dry", action="store_true"); r.set_defaults(fn=cmd_run)
+    r = sub.add_parser("run"); r.add_argument("--dry", action="store_true"); r.add_argument("--force", action="store_true", help="with --dry: rehearse the strategist + committee + gate while the market is closed"); r.set_defaults(fn=cmd_run)
     l = sub.add_parser("loop"); l.add_argument("--every", type=int, default=900); l.add_argument("--dry", action="store_true"); l.add_argument("--max-cycles", type=int, default=0); l.add_argument("--until", default="", help="HH:MM local time to stop, e.g. 20:05"); l.set_defaults(fn=cmd_loop)
     sub.add_parser("audit").set_defaults(fn=cmd_audit)
     sub.add_parser("report").set_defaults(fn=cmd_report)

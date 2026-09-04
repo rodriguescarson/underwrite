@@ -162,8 +162,9 @@ def resolve_outcomes() -> int:
     return n
 
 
-def run_once(dry: bool = False) -> dict[str, Any]:
-    log: dict[str, Any] = {"dry": dry}
+def run_once(dry: bool = False, force: bool = False) -> dict[str, Any]:
+    """`force` skips the market-open check (dry rehearsals outside hours only)."""
+    log: dict[str, Any] = {"dry": dry, "force": force}
     snap = snapshot()
     log["equity"] = snap["account"].get("equity")
     log["reconciled"] = reconcile()
@@ -171,7 +172,7 @@ def run_once(dry: bool = False) -> dict[str, Any]:
     log["resolved"] = resolve_outcomes()
     state = calibration.compute()
     log["calibration"] = state.as_dict()
-    if not snap["clock"].get("is_open"):
+    if not snap["clock"].get("is_open") and not (dry and force):
         log["skipped"] = f"market closed (next open {snap['clock'].get('next_open')})"
         return log
     opens = open_structures()
