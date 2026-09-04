@@ -18,7 +18,7 @@ The executor places the multi-leg order through the MCP server's place_option_or
 
 Position size is a function of measured calibration: Brier score and expected calibration error of stated probabilities against realised outcomes, reported-vs-verified claim accuracy, and silent-failure count. The budget unlocks from 0.25% to 1% of equity only after ten resolved structures with ECE ≤ 0.15, Brier ≤ 0.25 and 99% claim accuracy. During the hackathon the desk trades at the floor, and the published report says so rather than hiding it.
 
-Everything is an append-only JSONL ledger, and the hosted report is generated from it and nothing else: every order id appears in both a claim and a CLI audit, every gate decision lists its reasons, every proposal lists its MCP tool calls. Account: paper account PA3TNFFGMVEM, created for this hackathon on 2026-09-03 19:00 UTC with $100,000. First live session (US close, Sep 3): 2 defined-risk spreads opened through the MCP server (SPY 765/760, NVDA 220/215), both confirmed filled by the CLI audit, 2/2 claims matched, 0 silent failures, $836 at risk, sized 1x at the floor because 0 of the 10 resolved structures needed to earn the full budget exist yet.
+Everything is an append-only JSONL ledger, and the hosted report is generated from it and nothing else: every order id appears in both a claim and a CLI audit, every gate decision lists its reasons, every proposal lists its MCP tool calls. Account: paper account PA3TNFFGMVEM, created for this hackathon on 2026-09-03 19:00 UTC with $100,000. Two live sessions (US close Sep 3, US open Sep 4): 10 orders through the MCP server, 10 of 10 claims reconciled by the CLI audit, 0 silent failures. Session 1: SPY 765/760, NVDA 220/215, TSLA 360/355 and TSLA 355/350 bull put spreads filled; AAPL and MSFT day orders expired at the bell, recorded as such. Session 2 with the second-opinion committee (Claude Sonnet 4.5 proposes, Gemini 2.5 Pro reviews the exact legs): 10 proposals, 7 reviews (2 agreed, 5 vetoed in writing — open interest below 100, a 378-DTE expiry, unrealistic credits), 2 reasoned declines, gate 2 accepts / 5 rejects; AAPL 9/25 filled, QQQ 9/25 working at the close; the desk's own policy check caught a duplicate TSLA structure that slipped in while the first order was still working and put in a closing order on the record. $1,959 at risk, 1x each at the floor, because 0 of the 10 resolved structures needed to earn the full budget exist yet; equity $99,679.50 (mark-to-market on fresh credit spreads).
 
 **Technology tags:** Alpaca, Gemini, Google ADK, MCP, Python, Streamlit-free static report (Vercel)
 
@@ -26,13 +26,13 @@ Everything is an append-only JSONL ledger, and the hosted report is generated fr
 
 **Cover image (16:9):** docs/cover.png
 
-**Video (≤5 min, MP4):** intro → PDF deck walkthrough → live report + ledger + a gate rejection + a CLI audit matching an MCP order
+**Video (≤5 min, MP4):** docs/underwrite-fallback.mp4 (2:49, narrated deck + live dashboard) — or Carson's own recording if made
 
-**Slide deck (PDF):** docs/deck.pdf (regenerate after the session: fill the {{...}} numbers in docs/deck.html, then run the headless-Chrome command in the README)
+**Slide deck (PDF):** docs/deck.pdf (filled with both sessions' numbers)
 
 **GitHub (public):** https://github.com/rodriguescarson/underwrite (make public: `gh repo edit rodriguescarson/underwrite --visibility public --accept-visibility-change-consequences`)
 
-**Application URL:** https://underwrite-ashen.vercel.app
+**Application URL:** https://underwrite-ashen.vercel.app/dashboard.html (report: https://underwrite-ashen.vercel.app)
 
 **One-page write-up:** docs/WRITEUP.md (attach as PDF or paste)
 
