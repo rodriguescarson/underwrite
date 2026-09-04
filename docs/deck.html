@@ -42,7 +42,8 @@ code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 20px; }
   <h2>Propose → gate → act → audit → calibrate → size</h2>
   <table>
     <tr><th>Strategist</th><td>Gemini agent (Google ADK) whose only market access is Alpaca's <b>MCP server</b>, read-only tools. Proposes one defined-risk spread with a stated P(profit), or declines.</td></tr>
-    <tr><th>Gate</th><td>Deterministic Python. Re-quotes every leg via alpaca-py, recomputes max loss, enforces 1% of equity, DTE 7–45, spread, open interest, concurrency.</td></tr>
+    <tr><th>Second opinion</th><td>A different model (Claude Sonnet 4.5, or an open-source model on Featherless) reviews the <em>specific</em> legs with the same read-only MCP tools and must agree; the desk records the more conservative P(profit). Vetoes are on the ledger.</td></tr>
+    <tr><th>Gate</th><td>Deterministic Python. Re-quotes every leg via alpaca-py, recomputes max loss, enforces 1% of equity, DTE 7–45, spread, open interest, one structure per underlying, six open at most.</td></tr>
     <tr><th>Executor</th><td><code>place_option_order</code> through the <b>MCP server</b>. The server's reply is the executor's <em>claim</em>, recorded verbatim.</td></tr>
     <tr><th>Auditor</th><td>Alpaca <b>CLI</b>, separate binary, separate HTTP client. Reconciles every claim. Claimed-filled-not-filled = silent failure.</td></tr>
     <tr><th>Sizing</th><td>0.25% of equity at the floor → 1% only after 10 resolved trades with ECE ≤ 0.15, Brier ≤ 0.25, 99% claim accuracy.</td></tr>
