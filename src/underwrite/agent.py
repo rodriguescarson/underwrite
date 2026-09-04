@@ -127,3 +127,59 @@ def propose(context: dict[str, Any], attempts: int = 3) -> tuple[dict[str, Any] 
                     continue
                 break
     return None, last, [], "none"
+
+
+REVIEW_INSTRUCTION = f"""You are the second opinion on an options desk. Another strategist has proposed ONE defined-risk structure.
+Your job is adversarial review, not a new idea: verify the legs with the read-only tools (get_option_snapshot for the exact
+symbols, get_stock_snapshot for the underlying, get_option_chain if you need context), then decide whether you would put
+this trade on. Check: liquidity (bid/ask, open interest), whether the short strike sits at a sensible delta (0.15-0.30 for
+premium selling), whether the stated probability of profit is honest given the delta and the exit plan (take profit at 50%
+of credit, stop at 2x credit, close at 2 DTE), and whether anything in the snapshot (trend, IV, upcoming events you can
+infer) argues against the direction. Constraints the gate enforces: {RISK.min_dte}-{RISK.max_dte} DTE, bid/ask <= {RISK.max_bid_ask_spread_frac:.0%},
+open interest >= {RISK.min_open_interest}, max loss <= 1% of equity.
+
+Finish with exactly one fenced JSON block and nothing after it:
+```json
+{{"agree": true, "p_profit": 0.66, "objections": ["..."], "reasoning": "two or three sentences citing the tool data"}}
+```
+Set agree=false if you would not take the trade as proposed. Your p_profit is YOUR probability the structure closes
+for a profit under the exit plan, independent of the number you were shown."""
+
+
+async def _review(context: dict[str, Any], proposal: dict[str, Any], model: str) -> tuple[dict[str, Any] | None, str, list[str]]:
+    toolset = McpToolset(connection_params=StdioConnectionParams(server_params=server_params(), timeout=120), tool_filter=READ_ONLY)
+    llm = LiteLlm(model="openai/" + model[len("featherless/"):], api_base="https://api.featherless.ai/v1", api_key=os.getenv("FEATHERLESS_API_KEY", "")) if model.startswith("featherless/") else (LiteLlm(model=model) if model.startswith(("openrouter/", "anthropic/", "openai/")) else model)
+    agent = LlmAgent(name="second_opinion", model=llm, instruction=REVIEW_INSTRUCTION, tools=[toolset])
+    sessions = InMemorySessionService()
+    runner = Runner(agent=agent, app_name="underwrite", session_service=sessions)
+    session = await sessions.create_session(app_name="underwrite", user_id="uw2")
+    msg = types.Content(role="user", parts=[types.Part(text="Desk context:\n" + json.dumps(context, indent=1) + "\n\nProposed structure to review:\n" + json.dumps(proposal, indent=1) + "\n\nVerify with the tools, then answer with the JSON block.")])
+    final, calls = "", []
+    try:
+        async for ev in runner.run_async(user_id="uw2", session_id=session.id, new_message=msg):
+            if ev.content and ev.content.parts:
+                for part in ev.content.parts:
+                    fc = getattr(part, "function_call", None)
+                    if fc is not None:
+                        calls.append(fc.name)
+                    if ev.is_final_response() and getattr(part, "text", None):
+                        final += part.text
+    finally:
+        try:
+            await toolset.close()
+        except Exception:
+            pass
+    return extract_json(final), final, calls
+
+
+def review(context: dict[str, Any], proposal: dict[str, Any], model: str, attempts: int = 2) -> tuple[dict[str, Any] | None, str, list[str]]:
+    import time as _t
+    last = "no attempt"
+    for attempt in range(attempts):
+        try:
+            return asyncio.run(_review(context, proposal, model))
+        except Exception as e:
+            last = f"{type(e).__name__}: {str(e)[:300]}"
+            if attempt < attempts - 1:
+                _t.sleep(5)
+    return None, last, []

@@ -28,7 +28,8 @@ class Proposal(BaseModel):
     net_credit: float = Field(description="Per 1x structure, in $ per share (positive = credit received, negative = debit paid)")
     max_loss_per_structure: float = Field(description="$ per 1x structure, contract multiplier applied (100)")
     limit_price: float = Field(description="Limit for the multi-leg order, $ per share; positive number, direction given by side of first leg per Alpaca mleg convention")
-    p_profit: float = Field(ge=0, le=1, description="The strategist's stated probability this structure is closed for a profit")
+    p_profit: float = Field(ge=0, le=1, description="The desk's recorded probability this structure is closed for a profit (the more conservative of primary and reviewer when a second opinion ran)")
+    p_profit_primary: Optional[float] = Field(default=None, description="The primary strategist's own number, when a reviewer adjusted p_profit")
     thesis: str
     data_cited: list[str] = Field(description="Which live tool results the thesis rests on")
     exit_plan: str = "take profit at 50% of credit, stop at 2x credit, close at 2 DTE"
