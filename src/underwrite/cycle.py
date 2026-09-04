@@ -21,6 +21,26 @@ from .models import Leg, Proposal
 
 TERMINAL = {"filled", "canceled", "expired", "rejected", "replaced", "done_for_day"}
 STATUS_RE = re.compile(r"status[\"':\s]+([a-z_]+)", re.I)
+WORKING = {"new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding", "held"}
+
+
+def rejected_by_api(text: str) -> str | None:
+    """The MCP server returns API rejections as data, not as a tool error. Recognise them so the claim
+    is recorded as 'rejected' with no order id, instead of a bogus id scraped from the error body."""
+    if '"error"' in text and ("http_status" in text or "rejected" in text.lower()):
+        m = re.search(r'"message"\s*:\s*"([^"]{0,200})"', text)
+        return m.group(1) if m else "API rejected the order"
+    return None
+
+
+def working_close_exists(proposal_id: str) -> bool:
+    latest = ledger.latest_by("audits", "claim_id")
+    for c in ledger.read("orders"):
+        if c.get("kind") == "close" and c.get("closes_proposal_id") == proposal_id:
+            st = latest.get(c["claim_id"], {}).get("observed_status")
+            if st in WORKING:
+                return True
+    return False
 
 
 def _underlying_of(occ: str) -> str:
@@ -51,8 +71,12 @@ def audit_claim(claim: dict[str, Any]) -> dict[str, Any]:
                 observed = o
                 oid = o.get("id")
                 break
+    was_rejected = claim.get("claimed_status") == "rejected" or bool(rejected_by_api(claim.get("mcp_response") or ""))
     if not observed or "_error" in observed:
-        rec = {"type": "claim", "claim_id": claim["claim_id"], "order_id": oid, "observed": False, "observed_status": None, "observed_filled_qty": 0, "matches_claim": False, "note": "CLI cannot find the order the executor claimed to have placed"}
+        if was_rejected:
+            rec = {"type": "claim", "claim_id": claim["claim_id"], "order_id": None, "observed": False, "observed_status": "rejected", "observed_filled_qty": 0, "matches_claim": True, "note": "executor recorded an API rejection; CLI confirms no such order exists"}
+        else:
+            rec = {"type": "claim", "claim_id": claim["claim_id"], "order_id": oid, "observed": False, "observed_status": None, "observed_filled_qty": 0, "matches_claim": False, "note": "CLI cannot find the order the executor claimed to have placed"}
     else:
         st = observed.get("status")
         fq = float(observed.get("filled_qty") or 0)
@@ -122,6 +146,9 @@ def manage_exits(dry: bool = False) -> list[dict[str, Any]]:
     structs = open_structures()
     violations = policy_violations(structs)
     for s in structs:
+        if working_close_exists(s["proposal_id"]):
+            actions.append({"proposal_id": s["proposal_id"], "exit": None, "note": "closing order already working"})
+            continue
         legs = s["legs"]
         q = market.quotes_for([l["symbol"] for l in legs])
         if any(l["symbol"] not in q for l in legs):
@@ -151,9 +178,10 @@ def manage_exits(dry: bool = False) -> list[dict[str, Any]]:
             limit = cur + 0.03 if cur > 0 else cur - 0.03  # pay up a little to get out
             coid = ledger.new_id("uwc")
             text = mcp_exec.place_mleg(rev, int(s["qty"]), limit, coid)
-            oid = mcp_exec.parse_order_id(text)
+            rej = rejected_by_api(text)
+            oid = None if rej else mcp_exec.parse_order_id(text)
             m = STATUS_RE.search(text)
-            claim = ledger.append("orders", {"claim_id": ledger.new_id("clm"), "kind": "close", "closes_proposal_id": s["proposal_id"], "proposal_id": s["proposal_id"], "decision_id": None, "order_id": oid, "client_order_id": coid, "claimed_status": (m.group(1).lower() if m else "unknown"), "p_profit": s["p_profit"], "underlying": s["underlying"], "structure": s["structure"], "legs": [{**l, "side": r["side"]} for l, r in zip(legs, rev)], "qty": s["qty"], "limit_price": round(limit, 2), "exit_reason": reason, "open_credit": open_credit, "mcp_response": text[:2000]})
+            claim = ledger.append("orders", {"claim_id": ledger.new_id("clm"), "kind": "close", "closes_proposal_id": s["proposal_id"], "proposal_id": s["proposal_id"], "decision_id": None, "order_id": oid, "client_order_id": coid, "claimed_status": ("rejected" if rej else (m.group(1).lower() if m else "unknown")), "rejection": rej, "p_profit": s["p_profit"], "underlying": s["underlying"], "structure": s["structure"], "legs": [{**l, "side": r["side"]} for l, r in zip(legs, rev)], "qty": s["qty"], "limit_price": round(limit, 2), "exit_reason": reason, "open_credit": open_credit, "mcp_response": text[:2000]})
             time.sleep(2)
             audit_claim(claim)
     return actions
@@ -226,10 +254,11 @@ def run_once(dry: bool = False, force: bool = False) -> dict[str, Any]:
     legs = [{"symbol": l.symbol, "ratio_qty": str(l.ratio_qty), "side": l.side, "position_intent": "sell_to_open" if l.side == "sell" else "buy_to_open"} for l in p.legs]
     coid = ledger.new_id("uwo")
     text = mcp_exec.place_mleg(legs, dec.qty, limit, coid)
-    oid = mcp_exec.parse_order_id(text)
+    rej = rejected_by_api(text)
+    oid = None if rej else mcp_exec.parse_order_id(text)
     m = STATUS_RE.search(text)
     dec_id = ledger.read("gate")[-1]["decision_id"]
-    claim = ledger.append("orders", {"claim_id": ledger.new_id("clm"), "kind": "open", "proposal_id": prop_rec["proposal_id"], "decision_id": dec_id, "order_id": oid, "client_order_id": coid, "claimed_status": (m.group(1).lower() if m else "unknown"), "p_profit": p.p_profit, "underlying": p.underlying, "structure": p.structure, "legs": [l.model_dump() for l in p.legs], "qty": dec.qty, "limit_price": round(limit, 2), "thesis": p.thesis, "mcp_response": text[:2000]})
+    claim = ledger.append("orders", {"claim_id": ledger.new_id("clm"), "kind": "open", "proposal_id": prop_rec["proposal_id"], "decision_id": dec_id, "order_id": oid, "client_order_id": coid, "claimed_status": ("rejected" if rej else (m.group(1).lower() if m else "unknown")), "rejection": rej, "p_profit": p.p_profit, "underlying": p.underlying, "structure": p.structure, "legs": [l.model_dump() for l in p.legs], "qty": dec.qty, "limit_price": round(limit, 2), "thesis": p.thesis, "mcp_response": text[:2000]})
     time.sleep(3)
     a = audit_claim(claim)
     log["order"] = {"order_id": oid, "claimed": claim["claimed_status"], "observed": a.get("observed_status"), "matches": a.get("matches_claim")}

@@ -80,3 +80,25 @@ def test_policy_violation_marks_newer_duplicate():
     c = {"proposal_id": "p3", "underlying": "SPY", "ts": "2026-09-03T19:08:00+00:00"}
     v = policy_violations([b, a, c])
     assert set(v) == {"p2"} and "one per underlying" in v["p2"]
+
+
+def test_api_rejection_is_recorded_as_rejected_and_audits_consistent(monkeypatch):
+    from underwrite.cycle import rejected_by_api
+    txt = '{"data":{"error":{"message":"API rejected the order","http_status":403,"detail":{"related_orders":["a771d4cf-2b0f-4cba-b65b-c00da4d6f2c9"]}}}}'
+    assert rejected_by_api(txt) == "API rejected the order"
+    c = _claim(order_id=None, claimed_status="rejected", mcp_response=txt)
+    monkeypatch.setattr(audit_cli, "orders", lambda status="all", limit=200: [])
+    a = cycle.audit_claim(c)
+    assert a["matches_claim"] and a["observed_status"] == "rejected"
+
+
+def test_exits_skip_structures_with_a_working_close(monkeypatch):
+    c = _claim()
+    monkeypatch.setattr(audit_cli, "order", lambda oid: {"id": oid, "status": "filled", "filled_qty": "1", "legs": [{"symbol": "SPY260925P00600000", "side": "sell", "filled_qty": "1", "filled_avg_price": "1.50", "status": "filled"}, {"symbol": "SPY260925P00595000", "side": "buy", "filled_qty": "1", "filled_avg_price": "0.55", "status": "filled"}]})
+    cycle.audit_claim(c)
+    ledger.append("orders", {"claim_id": "clm_close1", "kind": "close", "closes_proposal_id": "prp_a", "proposal_id": "prp_a", "claimed_status": "new", "p_profit": 0.66, "legs": c["legs"], "qty": 1, "limit_price": 0.4})
+    ledger.append("audits", {"type": "claim", "claim_id": "clm_close1", "observed": True, "observed_status": "new", "matches_claim": True})
+    called = {"n": 0}
+    monkeypatch.setattr(market, "quotes_for", lambda syms: called.__setitem__("n", called["n"] + 1) or {})
+    actions = cycle.manage_exits()
+    assert called["n"] == 0 and actions[0]["note"] == "closing order already working"
