@@ -103,9 +103,25 @@ def _fill_credit(audit: dict[str, Any], legs: list[dict[str, Any]]) -> float | N
     return round(total, 4)
 
 
+def policy_violations(structs: list[dict[str, Any]]) -> dict[str, str]:
+    """Structures that break the desk's own rules (e.g. two open structures on one underlying because the
+    second slipped in while the first order was still working). The NEWER one is closed at the next opportunity."""
+    seen: dict[str, dict[str, Any]] = {}
+    out: dict[str, str] = {}
+    for s in sorted(structs, key=lambda x: x["ts"]):
+        u = s.get("underlying")
+        if u in seen:
+            out[s["proposal_id"]] = f"policy: second structure on {u} (one per underlying); opened {s['ts'][11:19]}Z after {seen[u]['ts'][11:19]}Z"
+        else:
+            seen[u] = s
+    return out
+
+
 def manage_exits(dry: bool = False) -> list[dict[str, Any]]:
     actions = []
-    for s in open_structures():
+    structs = open_structures()
+    violations = policy_violations(structs)
+    for s in structs:
         legs = s["legs"]
         q = market.quotes_for([l["symbol"] for l in legs])
         if any(l["symbol"] not in q for l in legs):
@@ -127,6 +143,8 @@ def manage_exits(dry: bool = False) -> list[dict[str, Any]]:
             reason = f"stop on debit structure: {pnl:.2f}"
         elif min_dte <= 2:
             reason = f"time exit: {min_dte} DTE"
+        elif s["proposal_id"] in violations:
+            reason = violations[s["proposal_id"]]
         actions.append({"proposal_id": s["proposal_id"], "open_credit": open_credit, "current_credit": cur, "pnl_per_share": pnl, "min_dte": min_dte, "exit": reason})
         if reason and not dry:
             rev = [{"symbol": l["symbol"], "ratio_qty": str(l["ratio_qty"]), "side": "buy" if l["side"] == "sell" else "sell", "position_intent": "buy_to_close" if l["side"] == "sell" else "sell_to_close"} for l in legs]

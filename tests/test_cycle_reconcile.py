@@ -71,3 +71,12 @@ def test_take_profit_exit_places_reverse_mleg_and_resolves(monkeypatch):
     o = ledger.read("outcomes")[0]
     assert o["win"] and o["pnl"] == pytest.approx(55.0)  # (0.95 - 0.40) * 100
     assert cycle.open_structures() == []
+
+
+def test_policy_violation_marks_newer_duplicate():
+    from underwrite.cycle import policy_violations
+    a = {"proposal_id": "p1", "underlying": "TSLA", "ts": "2026-09-03T19:19:00+00:00"}
+    b = {"proposal_id": "p2", "underlying": "TSLA", "ts": "2026-09-03T19:24:00+00:00"}
+    c = {"proposal_id": "p3", "underlying": "SPY", "ts": "2026-09-03T19:08:00+00:00"}
+    v = policy_violations([b, a, c])
+    assert set(v) == {"p2"} and "one per underlying" in v["p2"]

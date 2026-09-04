@@ -24,7 +24,7 @@ class Risk:
     earned_risk_frac: float = 0.01             # sizing once calibration passes
     min_dte: int = 7
     max_dte: int = 45
-    max_open_structures: int = 4
+    max_open_structures: int = 6                # raised from 4 after session 1: floor sizing left 98.5% of equity idle
     max_structures_per_underlying: int = 1
     max_bid_ask_spread_frac: float = 0.15      # per leg: (ask-bid)/mid must be <= 15% ...
     max_abs_spread: float = 0.10               # ...unless the absolute spread is <= $0.10 (cheap far-OTM wings)
